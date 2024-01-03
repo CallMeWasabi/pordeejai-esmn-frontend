@@ -1,8 +1,12 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, Prompt, Kanit } from 'next/font/google'
 import './globals.css'
+import NextWrapper from './NextWrapper'
+import { Toaster } from 'react-hot-toast'
 
-const inter = Inter({ subsets: ['latin'] })
+// const inter = Inter({ subsets: ['latin'] })
+// const kanit = Kanit({ weight: "400", subsets: ["thai"]})
+const prompt = Prompt({ weight: "400", subsets: ["thai"]})
 
 export const metadata: Metadata = {
   title: 'Create Next App',
@@ -16,7 +20,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={prompt.className}>
+        <NextWrapper>
+          <Toaster />
+          {children}
+        </NextWrapper>
+      </body>
     </html>
   )
 }

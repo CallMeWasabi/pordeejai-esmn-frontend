@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model memoorder {
+  id        Int      @id @default(autoincrement())
+  tableId   Int      @unique(map: "MemoOrder_tableId_key")
+  order     String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  table     table    @relation(fields: [tableId], references: [id], map: "MemoOrder_tableId_fkey")
+}
+
+model menutype {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
+}
+
+model menu {
+  id        Int         @id @default(autoincrement())
+  price     Float
+  status    menu_status @default(OPEN)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime
+  name      String      @unique(map: "Menu_name_key")
+}
+
+model table {
+  id        Int          @id @default(autoincrement())
+  status    table_status @default(OPEN)
+  uuid      String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime
+  name      String       @unique(map: "Table_name_key")
+  memoorder memoorder?
+}
+
+enum table_status {
+  IN_SERVICE
+  OPEN
+  CLOSE
+  ERROR
+}
+
+enum menu_status {
+  OPEN
+  CLOSE
+  ERROR
+}
