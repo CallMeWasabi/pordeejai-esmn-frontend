@@ -2,7 +2,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { use, useEffect, useState } from "react";
 import axios from "axios";
-import { clientWebserverUrl } from "@/app/constant";
+import { clientWebserverUrl, shopUrl } from "@/app/constant";
 import {
   Divider,
   RadioGroup,
@@ -17,7 +17,6 @@ import { FiMinus, FiPlus } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { saveOrder } from "./OrderAction";
 import Cookies from "js-cookie";
-import { shopUrl } from "@/app/page";
 
 interface ChoiceQuery {
   name: string;

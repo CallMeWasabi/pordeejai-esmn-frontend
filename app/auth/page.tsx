@@ -3,7 +3,7 @@ import { Button } from "@nextui-org/react";
 import { useSearchParams, useRouter } from "next/navigation";
 import React, { useEffect } from "react";
 import { authVerify } from "./serverAction";
-import { shopUrl } from "../page";
+import { shopUrl } from "../constant";
 
 const AuthPage = () => {
   const router = useRouter();

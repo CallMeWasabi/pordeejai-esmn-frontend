@@ -5,12 +5,11 @@ import React, { useEffect, useState } from "react";
 import CardMenu from "./CardMenu";
 import { MenuQuery } from "../page";
 import { useRouter } from "next/navigation";
-import Cookies from "js-cookie"
-import { clientWebserverUrl } from "@/app/constant";
-import { shopUrl } from "@/app/page";
+import Cookies from "js-cookie";
+import { clientWebserverUrl, shopUrl } from "@/app/constant";
 
 const Page = ({ params }: { params: { menuTypeId: number } }) => {
-  const router = useRouter()
+  const router = useRouter();
   const [tableId, setTableId] = useState("");
   const [menus, setMenus] = useState<MenuQuery[]>([]);
 
@@ -26,7 +25,7 @@ const Page = ({ params }: { params: { menuTypeId: number } }) => {
   useEffect(() => {
     const loadMenu = async () => {
       const response = await axios.get(
-        `http://localhost:8080/api/menus/type/${params.menuTypeId}`
+        `${process.env.WEBSERVER_URL}/api/menus/type/${params.menuTypeId}`
       );
       if (response.status === 200) {
         setMenus(response.data);
@@ -38,33 +37,32 @@ const Page = ({ params }: { params: { menuTypeId: number } }) => {
   useEffect(() => {
     const verifyUser = async () => {
       try {
-        const raw = localStorage.getItem("table")
-        const tableInfo = JSON.parse(raw ?? "{}")
+        const raw = localStorage.getItem("table");
+        const tableInfo = JSON.parse(raw ?? "{}");
 
         if (!tableInfo) {
-          throw new Error("Unauthorization")
+          throw new Error("Unauthorization");
         }
 
-        let res = await axios.get(`${clientWebserverUrl}/api/auth/verify-status/${tableInfo.uuid}`)
-
-        if (res.status !== 200) {
-          throw new Error("Unauthorization")
-        }
-
-        res = await axios.get(
-          `${clientWebserverUrl}/api/auth/verify`,
-          {
-            headers: {
-              Authorization: Cookies.get("token"),
-            },
-          }
+        let res = await axios.get(
+          `${clientWebserverUrl}/api/auth/verify-status/${tableInfo.uuid}`
         );
+
         if (res.status !== 200) {
-          throw new Error(res.statusText)
+          throw new Error("Unauthorization");
+        }
+
+        res = await axios.get(`${clientWebserverUrl}/api/auth/verify`, {
+          headers: {
+            Authorization: Cookies.get("token"),
+          },
+        });
+        if (res.status !== 200) {
+          throw new Error(res.statusText);
         }
       } catch (error) {
-        console.log(error)
-          return router.push(`${shopUrl}/unauthorized`);
+        console.log(error);
+        return router.push(`${shopUrl}/unauthorized`);
       }
     };
     verifyUser();

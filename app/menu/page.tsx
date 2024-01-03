@@ -6,8 +6,7 @@ import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
 import CardTypeMenu from "./CardTypeMenu";
 import Link from "next/link";
-import { clientWebserverUrl } from "../constant";
-import { shopUrl } from "../page";
+import { clientWebserverUrl, shopUrl } from "../constant";
 
 export interface MenuTypeQuery {
   id: number;

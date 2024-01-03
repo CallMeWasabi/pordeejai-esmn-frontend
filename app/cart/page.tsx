@@ -6,12 +6,11 @@ import Cookies from "js-cookie";
 import { Tabs, Tab, Button, menu } from "@nextui-org/react";
 import NotConfirmTab from "./NotConfirmTab";
 import { OrderQuery } from "../menu/[menuTypeId]/order/OrderAction";
-import { clientWebserverUrl } from "../constant";
+import { clientWebserverUrl, shopUrl } from "../constant";
 import Link from "next/link";
 import OnGoingTab from "./OnGoingTab";
 import SuccessTab from "./SuccessTab";
 import CancleTab from "./CancleTab";
-import { shopUrl } from "../page";
 
 interface MemoOrder {
   id: number;

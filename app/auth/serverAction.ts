@@ -4,7 +4,7 @@ import Cookies from "js-cookie";
 
 
 export const authVerify = async (uuid: string) => {
-    const response = await axios.post(`http://localhost:8080/api/auth`, {
+    const response = await axios.post(`${process.env.WEBSERVER_URL}/api/auth`, {
         uuid: uuid,
     });
     if (response.status === 200) {
