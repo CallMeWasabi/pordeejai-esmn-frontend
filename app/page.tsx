@@ -1,12 +1,15 @@
-"use client"
 import React from "react"
 
-export const shopUrl = "http://pordeejai-esmn.vercel.app"
+// export const shopUrl = "http://pordeejai-esmn.vercel.app"
 
-export default function Home() {
+export const shopUrl = "http://localhost:3001"
+
+const Home = () => {
   return (
-    <main>
+    <div>
       
-    </main>
+    </div>
   )
 }
+
+export default Home
