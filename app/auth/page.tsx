@@ -13,6 +13,7 @@ const AuthPage = () => {
     const auth = async () => {
       try {
         const uuid = searchParams.get("uuid");
+        console.log(uuid)
         if (!uuid) {
           return router.push(`${shopUrl}/unauthorized`);
         }
