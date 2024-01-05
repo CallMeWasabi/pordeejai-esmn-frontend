@@ -1,6 +1,8 @@
 "use server"
 
+import { getToken } from "@/app/auth/serverAction";
 import axios from "axios";
+import { redirect } from "next/navigation";
 
 export interface SubOrderQueryInterface {
     name: string;
@@ -42,7 +44,12 @@ const compareOptions = (origin: SubOrderQueryInterface[], target: SubOrderQueryI
 
 export const saveOrder = async (orderString: OrderQuery, tableId: number) => {
     try {
-        const res = await axios.get(`${process.env.WEBSERVER_URL}/api/memo-orders/table/${tableId}`)
+        const jwtToken = await getToken()
+        const res = await axios.get(`${process.env.WEBSERVER_URL}/api/memo-orders/table/${tableId}`, {
+            headers: {
+                Authorization: `Bearer ${jwtToken}`
+            }
+        })
         let order = JSON.parse(res.data.order)
         let dup = false
         for (let i = 0; i < order.length; i++) {
@@ -58,11 +65,23 @@ export const saveOrder = async (orderString: OrderQuery, tableId: number) => {
         }
         const resUpdate = await axios.put(`${process.env.WEBSERVER_URL}/api/memo-orders/table/${tableId}`, {
             order: JSON.stringify(order)
+        }, {
+            headers: {
+                Authorization: `Bearer ${jwtToken}`
+            }
         })
         return resUpdate.status
-    } catch (error) {
+    } catch (e: any) {
+        if (e.message === "Request failed with status code 401") {
+            redirect("/unauthorized")
+        }
+        const jwtToken = await getToken()
         const resUpdate = await axios.put(`${process.env.WEBSERVER_URL}/api/memo-orders/table/${tableId}`, {
             order: JSON.stringify([orderString])
+        }, {
+            headers: {
+                Authorization: `Bearer ${jwtToken}`
+            }
         })
         return resUpdate.status
     }
@@ -70,7 +89,12 @@ export const saveOrder = async (orderString: OrderQuery, tableId: number) => {
 
 export const deleteOrder = async (uuid: string, tableId: number) => {
     try {
-        const res = await axios.get(`${process.env.WEBSERVER_URL}/api/memo-orders/table/${tableId}`)
+        const jwtToken = await getToken()
+        const res = await axios.get(`${process.env.WEBSERVER_URL}/api/memo-orders/table/${tableId}`, {
+            headers: {
+                Authorization: `Bearer ${jwtToken}`
+            }
+        })
         let order = JSON.parse(res.data.order)
         let newOrder = []
         for (let i = 0; i < order.length; i++) {
@@ -80,17 +104,28 @@ export const deleteOrder = async (uuid: string, tableId: number) => {
         }
         const resUpdate = await axios.put(`${process.env.WEBSERVER_URL}/api/memo-orders/table/${tableId}`, {
             order: JSON.stringify(newOrder)
+        }, {
+            headers: {
+                Authorization: `Bearer ${jwtToken}`
+            }
         })
         return resUpdate.status
-    } catch (error) {
-        console.log(error)
-        return 401
+    } catch (e: any) {
+        if (e.message === "Request failed with status code 401") {
+            redirect("/unauthorized")
+        }
+        console.log(e.message)
     }
 }
 
 export const updateOrder = async (uuid: string, orderString: OrderQuery, tableId: number) => {
     try {
-        const res = await axios.get(`${process.env.WEBSERVER_URL}/api/memo-orders/table/${tableId}`)
+        const jwtToken = await getToken()
+        const res = await axios.get(`${process.env.WEBSERVER_URL}/api/memo-orders/table/${tableId}`, {
+            headers: {
+                Authorization: `Bearer ${jwtToken}`
+            }
+        })
         let order = JSON.parse(res.data.order)
         let newOrder = []
         for (let i = 0; i < order.length; i++) {
@@ -101,6 +136,10 @@ export const updateOrder = async (uuid: string, orderString: OrderQuery, tableId
         newOrder.push(orderString)
         const resUpdate = await axios.put(`${process.env.WEBSERVER_URL}/api/memo-orders/table/${tableId}`, {
             order: JSON.stringify(newOrder)
+        }, {
+            headers: {
+                Authorization: `Bearer ${jwtToken}`
+            }
         })
         return resUpdate.status
     } catch (error) {

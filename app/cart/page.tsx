@@ -11,6 +11,8 @@ import Link from "next/link";
 import OnGoingTab from "./OnGoingTab";
 import SuccessTab from "./SuccessTab";
 import CancleTab from "./CancleTab";
+import { getToken } from "../auth/serverAction";
+import toast from "react-hot-toast";
 
 interface MemoOrder {
   id: number;
@@ -34,68 +36,24 @@ const Page = () => {
   useEffect(() => {
     const verifyUser = async () => {
       try {
-        const raw = localStorage.getItem("table")
-        const tableInfo = JSON.parse(raw ?? "{}")
+        const raw = localStorage.getItem("table");
+        const tableInfo = JSON.parse(raw ?? "{}");
 
         if (!tableInfo) {
-          throw new Error("Unauthorization")
+          throw new Error("Unauthorization");
         }
 
-        let res = await axios.get(`${clientWebserverUrl}/api/auth/verify-status/${tableInfo.uuid}`)
-
-        if (res.status !== 200) {
-          throw new Error("Unauthorization")
-        }
-
-        res = await axios.get(
-          `${clientWebserverUrl}/api/auth/verify`,
-          {
-            headers: {
-              Authorization: Cookies.get("token"),
-            },
-          }
+        let res = await axios.get(
+          `${clientWebserverUrl}/api/auth/verify-status/${tableInfo.uuid}`
         );
-        if (res.status !== 200) {
-          throw new Error(res.statusText)
+
+      } catch (e: any) {
+        if (e.message === "Request failed with status code 401") {
+          toast.error("ยืนยันผู้ใช้งานล้มเหลว");
+          return router.push("/unauthorized");
         }
-      } catch (error) {
-        console.log(error)
-          return router.push(`${shopUrl}/unauthorized`);
-      }
-    };
-    verifyUser();
-  }, [router]);
-
-  useEffect(() => {
-    const verifyUser = async () => {
-      try {
-        const raw = localStorage.getItem("table")
-        const tableInfo = JSON.parse(raw ?? "{}")
-
-        if (!tableInfo) {
-          throw new Error("Unauthorization")
-        }
-
-        let res = await axios.get(`${clientWebserverUrl}/api/auth/verify-status/${tableInfo.uuid}`)
-
-        if (res.status !== 200) {
-          throw new Error("Unauthorization")
-        }
-
-        res = await axios.get(
-          `${clientWebserverUrl}/api/auth/verify`,
-          {
-            headers: {
-              Authorization: Cookies.get("token"),
-            },
-          }
-        );
-        if (res.status !== 200) {
-          throw new Error(res.statusText)
-        }
-      } catch (error) {
-        console.log(error)
-          return router.push("http://localhost:3001/unauthorized");
+        console.log(e.message);
+        return router.push(`/unauthorized`);
       }
     };
     verifyUser();
@@ -104,21 +62,29 @@ const Page = () => {
   useEffect(() => {
     const loadOrder = async () => {
       try {
+        const jwtToken = await getToken();
         const res = await axios.get(
           `${clientWebserverUrl}/api/memo-orders/table/${
             JSON.parse(localStorage.getItem("table") ?? "[]").id
-          }`
+          }`,
+          {
+            headers: {
+              Authorization: `Bearer ${jwtToken}`,
+            },
+          }
         );
-        if (res.status === 200) {
-          setMemoOrder(res.data);
-          setOrders(JSON.parse(res.data.order));
+        setMemoOrder(res.data);
+        setOrders(JSON.parse(res.data.order));
+      } catch (e: any) {
+        if (e.message === "Request failed with status code 401") {
+          toast.error("ยืนยันผู้ใช้งานล้มเหลว");
+          router.push("/unauthorized");
         }
-      } catch (error) {
-        console.log(error);
+        console.log(e.message);
       }
     };
     loadOrder();
-  }, [trigger]);
+  }, [trigger, router]);
 
   return (
     <div className="p-5 flex flex-col">

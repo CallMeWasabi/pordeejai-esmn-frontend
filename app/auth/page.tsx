@@ -2,7 +2,7 @@
 import { Button } from "@nextui-org/react";
 import { useSearchParams, useRouter } from "next/navigation";
 import React, { useEffect } from "react";
-import { authVerify } from "./serverAction";
+import { authVerify, getToken, setToken } from "./serverAction";
 import { shopUrl } from "../constant";
 
 const AuthPage = () => {
@@ -13,13 +13,12 @@ const AuthPage = () => {
     const auth = async () => {
       try {
         const uuid = searchParams.get("uuid");
-        console.log(uuid)
         if (!uuid) {
           return router.push(`${shopUrl}/unauthorized`);
         }
-        const response = await authVerify(uuid);
-        if (response.status === 200) {
-          localStorage.setItem("table", JSON.stringify(response.table));
+        const res = await authVerify(uuid);
+        if (res && res.status === 200) {
+          localStorage.setItem("table", JSON.stringify(res.table));
           return router.push(`${shopUrl}/menu`);
         } else {
           throw new Error("Unauthorized")

@@ -1,13 +1,13 @@
+"use server"
+import { Button } from "@nextui-org/react"
+import { redirect } from "next/navigation"
 import React from "react"
 
-// export const shopUrl = "http://pordeejai-esmn.vercel.app"
-
-// export const shopUrl = "http://localhost:3001"
-
 const Home = () => {
+
   return (
-    <div>
-      
+    <div className="h-screen w-screen flex justify-center items-center">
+      <Button color="primary">กรุณายืนยันก่อนใช้บริการ</Button>
     </div>
   )
 }

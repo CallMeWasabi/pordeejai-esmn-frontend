@@ -17,6 +17,7 @@ import { FiMinus, FiPlus } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { saveOrder } from "./OrderAction";
 import Cookies from "js-cookie";
+import { getToken } from "@/app/auth/serverAction";
 
 interface ChoiceQuery {
   name: string;
@@ -26,7 +27,7 @@ interface ChoiceQuery {
 
 const Page = () => {
   const searchParams = useSearchParams();
-  const router = useRouter()
+  const router = useRouter();
 
   const [menu, setMenu] = useState<MenuQuery>();
   const [requiredOptions, setRequiredOptions] = useState<
@@ -50,33 +51,29 @@ const Page = () => {
   useEffect(() => {
     const verifyUser = async () => {
       try {
-        const raw = localStorage.getItem("table")
-        const tableInfo = JSON.parse(raw ?? "{}")
+        const raw = localStorage.getItem("table");
+        const tableInfo = JSON.parse(raw ?? "{}");
 
         if (!tableInfo) {
-          throw new Error("Unauthorization")
+          throw new Error("Unauthorization");
         }
 
-        let res = await axios.get(`${clientWebserverUrl}/api/auth/verify-status/${tableInfo.uuid}`)
-
-        if (res.status !== 200) {
-          throw new Error("Unauthorization")
-        }
-
-        res = await axios.get(
-          `${clientWebserverUrl}/api/auth/verify`,
+        const jwtToken = await getToken();
+        let res = await axios.get(
+          `${clientWebserverUrl}/api/auth/verify-status/${tableInfo.uuid}`,
           {
             headers: {
-              Authorization: Cookies.get("token"),
+              Authorization: `Bearer ${jwtToken}`,
             },
           }
         );
-        if (res.status !== 200) {
-          throw new Error(res.statusText)
+      } catch (e: any) {
+        if (e.message === "Request failed with status code 401") {
+          toast.error("ยืนยันผู้ใช้งานล้มเหลว");
+          return router.push("/unauthorized");
         }
-      } catch (error) {
-        console.log(error)
-          return router.push(`${shopUrl}/unauthorized`);
+        console.log(e.message);
+        return router.push(`/unauthorized`);
       }
     };
     verifyUser();
@@ -84,36 +81,48 @@ const Page = () => {
 
   useEffect(() => {
     const loadMenu = async () => {
-      const res = await axios.get(
-        `${clientWebserverUrl}/api/menus/${searchParams.get("id")}`
-      );
-      if (res.status === 200) {
-        setMenu(res.data);
-
-        let tempRequired = [];
-        let tempOptions = [];
-        for (let i = 0; i < res.data.options.length; i++) {
-          if (res.data.options[i].required) {
-            tempRequired.push({
-              name: res.data.options[i].name,
-              value: [],
-              price: 0,
-            });
-          } else {
-            tempOptions.push({
-              name: res.data.options[i].name,
-              value: [],
-              price: 0,
-            });
+      try {
+        const jwtToken = await getToken()
+        const res = await axios.get(
+          `${clientWebserverUrl}/api/menus/${searchParams.get("id")}`, {
+            headers: {
+              Authorization: `Bearer ${jwtToken}`
+            }
           }
+        );
+        if (res.status === 200) {
+          setMenu(res.data);
+
+          let tempRequired = [];
+          let tempOptions = [];
+          for (let i = 0; i < res.data.options.length; i++) {
+            if (res.data.options[i].required) {
+              tempRequired.push({
+                name: res.data.options[i].name,
+                value: [],
+                price: 0,
+              });
+            } else {
+              tempOptions.push({
+                name: res.data.options[i].name,
+                value: [],
+                price: 0,
+              });
+            }
+          }
+          setRequiredOptions(tempRequired);
+          setOptions(tempOptions);
+          setTotalPrice(res.data.price);
         }
-        setRequiredOptions(tempRequired);
-        setOptions(tempOptions);
-        setTotalPrice(res.data.price);
+      } catch (e: any) {
+        if (e.message === "Request failed with status code 401") {
+          toast.error("ยืนัยนผู้ใช้งานล้มเหลว");
+          router.push("/unauthorized");
+        }
       }
     };
     loadMenu();
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   useEffect(() => {
     let price = menu?.price ?? 0;
@@ -182,7 +191,7 @@ const Page = () => {
       price: totalPrice,
       quantity,
       status: "NOT_CONFIRM",
-      created_at: (new Date()).toLocaleString(),
+      created_at: new Date().toLocaleString(),
       options: [
         ...requiredOptions.filter((r) => (r.value.length > 0 ? true : false)),
         ...options.filter((o) => (o.value.length > 0 ? true : false)),
@@ -194,9 +203,8 @@ const Page = () => {
 
       if (status === 200) {
         toast.success("เพิ่มรายการสำเร็จ");
-      }
-      else {
-        throw new Error("http code: " + status.toString())
+      } else {
+        throw new Error("http code: " + status.toString());
       }
     } catch (error) {
       console.log(error);

@@ -15,7 +15,6 @@ import {
   ModalBody,
   ModalFooter,
 } from "@nextui-org/react";
-import { GoPlus } from "react-icons/go";
 import { FiMinus, FiPlus } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { MenuQuery, OptionQuery } from "../menu/page";
@@ -27,6 +26,8 @@ import {
   updateOrder,
 } from "../menu/[menuTypeId]/order/OrderAction";
 import { FaRegTrashAlt } from "react-icons/fa";
+import { getToken } from "../auth/serverAction";
+import { useRouter } from "next/navigation";
 
 interface ChoiceQuery {
   name: string;
@@ -43,6 +44,8 @@ const EditModal = ({
   tableId: number;
   refetch: Function;
 }) => {
+  const router = useRouter()
+
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState<MenuQuery>();
 
@@ -88,7 +91,12 @@ const EditModal = ({
 
   const loadMenu = async () => {
     try {
-      const res = await axios.get(`${clientWebserverUrl}/api/menus`);
+      const jwtToken = await getToken()
+      const res = await axios.get(`${clientWebserverUrl}/api/menus`, {
+        headers: {
+          Authorization: `Bearer ${jwtToken}`
+        }
+      });
       const tempMenu = res.data.filter(
         (menu: MenuQuery) => menu.name === order.name
       )[0];
@@ -131,8 +139,12 @@ const EditModal = ({
       setRequiredOptions(tempRequired);
       setOptions(tempOptions);
       setQuantity(order.quantity);
-    } catch (error) {
-      console.log(error);
+    } catch (e: any) {
+      if (e.message === "Request failed with status code 401") {
+        toast.error("ยืนยันผู้ใช้งานล้มเหลว")
+        router.push("/unauthorized")
+      }
+      console.log(e.message);
     }
   };
 

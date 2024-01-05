@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import CardTypeMenu from "./CardTypeMenu";
 import Link from "next/link";
 import { clientWebserverUrl, shopUrl } from "../constant";
+import { getToken } from "../auth/serverAction";
+import toast from "react-hot-toast";
 
 export interface MenuTypeQuery {
   id: number;
@@ -58,33 +60,20 @@ const MenuPage = () => {
   useEffect(() => {
     const verifyUser = async () => {
       try {
-        const raw = localStorage.getItem("table")
-        const tableInfo = JSON.parse(raw ?? "{}")
+        const raw = localStorage.getItem("table");
+        const tableInfo = JSON.parse(raw ?? "{}");
 
         if (!tableInfo) {
-          throw new Error("Unauthorization")
+          throw new Error("Unauthorization");
         }
 
-        let res = await axios.get(`${clientWebserverUrl}/api/auth/verify-status/${tableInfo.uuid}`)
-
-        if (res.status !== 200) {
-          throw new Error("Unauthorization")
-        }
-
-        res = await axios.get(
-          `${clientWebserverUrl}/api/auth/verify`,
-          {
-            headers: {
-              Authorization: Cookies.get("token"),
-            },
-          }
+        let res = await axios.get(
+          `${clientWebserverUrl}/api/auth/verify-status/${tableInfo.uuid}`
         );
-        if (res.status !== 200) {
-          throw new Error(res.statusText)
-        }
+
       } catch (error) {
-        console.log(error)
-          return router.push(`${shopUrl}/unauthorized`);
+        console.log(error);
+        return router.push(`${shopUrl}/unauthorized`);
       }
     };
     verifyUser();
@@ -92,19 +81,30 @@ const MenuPage = () => {
 
   useEffect(() => {
     const loadMenuType = async () => {
-      const res = await axios.get(`${clientWebserverUrl}/api/menu-types`);
-      if (res.status === 200) {
-        const items = res.data.filter((type: MenuTypeQuery) => {
-          if (type.status === "OPEN") {
-            return true;
+      try {
+        const jwtToken = await getToken()
+        const res = await axios.get(`${clientWebserverUrl}/api/menu-types`, {
+          headers: {
+            Authorization: `Bearer ${jwtToken}`
           }
-          return false;
         });
-        setMenuTyps(items);
+          const items = res.data.filter((type: MenuTypeQuery) => {
+            if (type.status === "OPEN") {
+              return true;
+            }
+            return false;
+          });
+          setMenuTyps(items);
+      } catch (e: any) {
+        if (e.message === "Request failed with status code 401") {
+          toast.error("ยืนยันผุ้ใช้งานล้มเหลว")
+          return router.push("/unauthorized")
+        }
+        console.log(e.message)
       }
     };
     loadMenuType();
-  }, []);
+  }, [router]);
 
   return (
     <div className="flex flex-col p-5 space-y-3">

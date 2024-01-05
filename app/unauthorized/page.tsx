@@ -4,11 +4,17 @@ import React, { useEffect } from "react";
 import Cookies from "js-cookie";
 import { IconContext } from "react-icons";
 import { FiShieldOff } from "react-icons/fi";
+import { deleteToken } from "../auth/serverAction";
+import { logNODENV } from "./server";
 
 const Page = () => {
   useEffect(() => {
-    localStorage.removeItem("table");
-    Cookies.remove("token");
+    const clear = async () => {
+      localStorage.removeItem("table");
+      await deleteToken()
+      logNODENV()
+    }
+    clear()
   }, []);
 
   return (

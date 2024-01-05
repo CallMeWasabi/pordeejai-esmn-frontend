@@ -7,6 +7,8 @@ import { MenuQuery } from "../page";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { clientWebserverUrl, shopUrl } from "@/app/constant";
+import toast from "react-hot-toast";
+import { getToken } from "@/app/auth/serverAction";
 
 const Page = ({ params }: { params: { menuTypeId: number } }) => {
   const router = useRouter();
@@ -24,15 +26,28 @@ const Page = ({ params }: { params: { menuTypeId: number } }) => {
 
   useEffect(() => {
     const loadMenu = async () => {
-      const response = await axios.get(
-        `${process.env.WEBSERVER_URL}/api/menus/type/${params.menuTypeId}`
-      );
-      if (response.status === 200) {
-        setMenus(response.data);
+      try {
+        const jwtToken = await getToken();
+        const res = await axios.get(
+          `${clientWebserverUrl}/api/menus/type/${params.menuTypeId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${jwtToken}`,
+            },
+          }
+        );
+        if (res.status === 200) {
+          setMenus(res.data);
+        }
+      } catch (e: any) {
+        if (e.message === "Request failed with status code 401") {
+          toast.error("ยืนยันผู้ใช้งานล้มเหลว");
+          router.push("/unauthorized");
+        }
       }
     };
     loadMenu();
-  }, [params.menuTypeId]);
+  }, [params.menuTypeId, router]);
 
   useEffect(() => {
     const verifyUser = async () => {
@@ -48,21 +63,9 @@ const Page = ({ params }: { params: { menuTypeId: number } }) => {
           `${clientWebserverUrl}/api/auth/verify-status/${tableInfo.uuid}`
         );
 
-        if (res.status !== 200) {
-          throw new Error("Unauthorization");
-        }
-
-        res = await axios.get(`${clientWebserverUrl}/api/auth/verify`, {
-          headers: {
-            Authorization: Cookies.get("token"),
-          },
-        });
-        if (res.status !== 200) {
-          throw new Error(res.statusText);
-        }
       } catch (error) {
         console.log(error);
-        return router.push(`${shopUrl}/unauthorized`);
+        return router.push(`/unauthorized`);
       }
     };
     verifyUser();

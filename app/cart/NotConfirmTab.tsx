@@ -9,6 +9,8 @@ import toast from "react-hot-toast";
 import { IconContext } from "react-icons";
 import { MdNoFood } from "react-icons/md";
 import EditModal from "./EditModal";
+import { getToken } from "../auth/serverAction";
+import { useRouter } from "next/navigation";
 
 const NotConfirmTab = ({
   orders,
@@ -19,6 +21,7 @@ const NotConfirmTab = ({
   tableId: number;
   refetch: Function;
 }) => {
+  const router = useRouter()
   const [loadingState, setLoadingState] = useState(false);
 
   const totalPrice = () => {
@@ -30,8 +33,14 @@ const NotConfirmTab = ({
   const submitOrder = async () => {
     setLoadingState(true);
     try {
+      const jwtToken = await getToken();
       let res = await axios.get(
-        `${clientWebserverUrl}/api/memo-orders/table/${tableId}`
+        `${clientWebserverUrl}/api/memo-orders/table/${tableId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
+          },
+        }
       );
       if (res.status === 200) {
       }
@@ -51,15 +60,21 @@ const NotConfirmTab = ({
         `${clientWebserverUrl}/api/memo-orders/table/${tableId}`,
         {
           order: JSON.stringify(newOrder),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
+          },
         }
       );
 
-      if (res.status === 200) {
-        toast.success("สั่งอาหารสำเร็จ");
-        refetch();
+      toast.success("สั่งอาหารสำเร็จ");
+      refetch();
+    } catch (e: any) {
+      if (e.message === "Request failed with status code 401") {
+        router.push("/unauthorized")
       }
-    } catch (error) {
-      console.log(error);
+      console.log(e.message);
       toast.error("สั่งรายการอาหารล้มเหลว โปรดติดต่อผู้ให้บริการ");
     }
     setLoadingState(false);
