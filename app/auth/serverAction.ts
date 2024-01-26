@@ -5,7 +5,7 @@ import { cookies } from "next/headers"
 
 export const authVerify = async (uuid: string) => {
     try {
-        const res = await axios.post(`${process.env.WEBSERVER_URL}/api/auth`, {
+        const res = await axios.post(`${process.env.WEBSERVER_URL}/auth`, {
             uuid: uuid,
         });
 

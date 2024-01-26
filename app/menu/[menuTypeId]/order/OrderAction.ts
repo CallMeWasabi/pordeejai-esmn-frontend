@@ -12,11 +12,12 @@ export interface SubOrderQueryInterface {
 
 export interface OrderQuery {
     uuid: string;
+    menu_id: string;
     name: string;
     price: number;
     quantity: number;
     status: string;
-    created_at: string;
+    created_at: Date;
     options: SubOrderQueryInterface[];
 }
 
@@ -42,74 +43,49 @@ const compareOptions = (origin: SubOrderQueryInterface[], target: SubOrderQueryI
     return true
 }
 
-export const saveOrder = async (orderString: OrderQuery, tableId: number) => {
+export const saveOrder = async (incommingOrder: OrderQuery, tableId: string) => {
     try {
-        const jwtToken = await getToken()
-        const res = await axios.get(`${process.env.WEBSERVER_URL}/api/memo-orders/table/${tableId}`, {
-            headers: {
-                Authorization: `Bearer ${jwtToken}`
-            }
-        })
-        let order = JSON.parse(res.data.order)
+        const res = await axios.get(`${process.env.WEBSERVER_URL}/tables/${tableId}`)
+        let { orders } = res.data.result
+        if (orders === null || orders === undefined || orders.length === 0) {
+            throw new Error("Orders is empty")
+        }
         let dup = false
-        for (let i = 0; i < order.length; i++) {
-            if (order[i].name === orderString.name && compareOptions(order[i].options, orderString.options) && order[i].status === "NOT_CONFIRM") {
-                order[i].quantity += orderString.quantity
-                order[i].price += orderString.price
+        for (let i = 0; i < orders.length; i++) {
+            if (orders[i].name === incommingOrder.name && compareOptions(orders[i].options, incommingOrder.options) && orders[i].status === "NOT_CONFIRM") {
+                orders[i].quantity += incommingOrder.quantity
+                orders[i].price += incommingOrder.price
                 dup = true
                 break
             }
         }
         if (!dup) {
-            order.push(orderString)
+            orders.push(incommingOrder)
         }
-        const resUpdate = await axios.put(`${process.env.WEBSERVER_URL}/api/memo-orders/table/${tableId}`, {
-            order: JSON.stringify(order)
-        }, {
-            headers: {
-                Authorization: `Bearer ${jwtToken}`
-            }
+
+        await axios.put(`${process.env.WEBSERVER_URL}/orders/${tableId}`, {
+            orders
         })
-        return resUpdate.status
     } catch (e: any) {
-        if (e.message === "Request failed with status code 401") {
-            redirect("/unauthorized")
-        }
-        const jwtToken = await getToken()
-        const resUpdate = await axios.put(`${process.env.WEBSERVER_URL}/api/memo-orders/table/${tableId}`, {
-            order: JSON.stringify([orderString])
-        }, {
-            headers: {
-                Authorization: `Bearer ${jwtToken}`
-            }
+        await axios.put(`${process.env.WEBSERVER_URL}/orders/${tableId}`, {
+            orders: [incommingOrder]
         })
-        return resUpdate.status
     }
 }
 
-export const deleteOrder = async (uuid: string, tableId: number) => {
+export const deleteOrder = async (uuid: string, tableId: string) => {
     try {
-        const jwtToken = await getToken()
-        const res = await axios.get(`${process.env.WEBSERVER_URL}/api/memo-orders/table/${tableId}`, {
-            headers: {
-                Authorization: `Bearer ${jwtToken}`
-            }
-        })
-        let order = JSON.parse(res.data.order)
+        const res = await axios.get(`${process.env.WEBSERVER_URL}/tables/${tableId}`)
+        let { orders } = res.data.result
         let newOrder = []
-        for (let i = 0; i < order.length; i++) {
-            if (order[i].uuid !== uuid) {
-                newOrder.push(order[i])
+        for (let i = 0; i < orders.length; i++) {
+            if (orders[i].uuid !== uuid) {
+                newOrder.push(orders[i])
             }
         }
-        const resUpdate = await axios.put(`${process.env.WEBSERVER_URL}/api/memo-orders/table/${tableId}`, {
-            order: JSON.stringify(newOrder)
-        }, {
-            headers: {
-                Authorization: `Bearer ${jwtToken}`
-            }
+        await axios.put(`${process.env.WEBSERVER_URL}/orders/${tableId}`, {
+            orders: newOrder
         })
-        return resUpdate.status
     } catch (e: any) {
         if (e.message === "Request failed with status code 401") {
             redirect("/unauthorized")
@@ -118,30 +94,21 @@ export const deleteOrder = async (uuid: string, tableId: number) => {
     }
 }
 
-export const updateOrder = async (uuid: string, orderString: OrderQuery, tableId: number) => {
+export const updateOrder = async (incommingOrder: OrderQuery, tableId: string) => {
     try {
-        const jwtToken = await getToken()
-        const res = await axios.get(`${process.env.WEBSERVER_URL}/api/memo-orders/table/${tableId}`, {
-            headers: {
-                Authorization: `Bearer ${jwtToken}`
-            }
-        })
-        let order = JSON.parse(res.data.order)
+        const res = await axios.get(`${process.env.WEBSERVER_URL}/tables/${tableId}`)
+        let { orders } = res.data.result
         let newOrder = []
-        for (let i = 0; i < order.length; i++) {
-            if (order[i].uuid !== uuid) {
-                newOrder.push(order[i])
+        for (let i = 0; i < orders.length; i++) {
+            if (orders[i].uuid !== incommingOrder.uuid) {
+                newOrder.push(orders[i])
+            } else {
+                newOrder.push(incommingOrder)
             }
         }
-        newOrder.push(orderString)
-        const resUpdate = await axios.put(`${process.env.WEBSERVER_URL}/api/memo-orders/table/${tableId}`, {
-            order: JSON.stringify(newOrder)
-        }, {
-            headers: {
-                Authorization: `Bearer ${jwtToken}`
-            }
+        await axios.put(`${process.env.WEBSERVER_URL}/orders/${tableId}`, {
+            orders: newOrder
         })
-        return resUpdate.status
     } catch (error) {
         console.log(error)
         return 401

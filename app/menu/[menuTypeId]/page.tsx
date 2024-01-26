@@ -3,7 +3,7 @@ import { Button, Chip } from "@nextui-org/react";
 import axios from "axios";
 import React, { useEffect, useState } from "react";
 import CardMenu from "./CardMenu";
-import { MenuQuery } from "../page";
+import { MenuQuery, recheckStatus } from "../page";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { clientWebserverUrl, shopUrl } from "@/app/constant";
@@ -12,33 +12,28 @@ import { getToken } from "@/app/auth/serverAction";
 
 const Page = ({ params }: { params: { menuTypeId: number } }) => {
   const router = useRouter();
-  const [tableId, setTableId] = useState("");
+  const [tableName, setTableName] = useState("");
   const [menus, setMenus] = useState<MenuQuery[]>([]);
 
   useEffect(() => {
-    const rawString = localStorage.getItem("table");
-    if (!rawString) {
-      return;
+    const tableName = localStorage.getItem("table_name")
+    if (!tableName) {
+      return setTableName("Not found");
     }
-    const tableInfo = JSON.parse(rawString);
-    setTableId(tableInfo.name);
+    setTableName(tableName);
   }, []);
 
   useEffect(() => {
     const loadMenu = async () => {
       try {
-        const jwtToken = await getToken();
         const res = await axios.get(
-          `${clientWebserverUrl}/api/menus/type/${params.menuTypeId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${jwtToken}`,
-            },
-          }
+          `${clientWebserverUrl}/menu-types/${params.menuTypeId}`
         );
-        if (res.status === 200) {
-          setMenus(res.data);
-        }
+        const { menus } = res.data.result;
+        const menuDatas = menus.filter((menu: any) =>
+          menu.status === "OPEN" ? true : false
+        );
+        setMenus(menuDatas)
       } catch (e: any) {
         if (e.message === "Request failed with status code 401") {
           toast.error("ยืนยันผู้ใช้งานล้มเหลว");
@@ -50,25 +45,7 @@ const Page = ({ params }: { params: { menuTypeId: number } }) => {
   }, [params.menuTypeId, router]);
 
   useEffect(() => {
-    const verifyUser = async () => {
-      try {
-        const raw = localStorage.getItem("table");
-        const tableInfo = JSON.parse(raw ?? "{}");
-
-        if (!tableInfo) {
-          throw new Error("Unauthorization");
-        }
-
-        let res = await axios.get(
-          `${clientWebserverUrl}/api/auth/verify-status/${tableInfo.uuid}`
-        );
-
-      } catch (error) {
-        console.log(error);
-        return router.push(`/unauthorized`);
-      }
-    };
-    verifyUser();
+    recheckStatus(router);
   }, [router]);
 
   return (
@@ -78,7 +55,7 @@ const Page = ({ params }: { params: { menuTypeId: number } }) => {
         <h3>
           เลขที่โต๊ะ :{" "}
           <Chip color="success" variant="shadow" className="text-white">
-            {tableId}
+            {tableName}
           </Chip>
         </h3>
       </div>

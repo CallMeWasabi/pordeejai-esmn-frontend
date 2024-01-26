@@ -11,19 +11,13 @@ import {
   Checkbox,
   Button,
 } from "@nextui-org/react";
-import { MenuQuery, OptionQuery } from "../../page";
+import { ChoiceQuery, MenuQuery, OptionQuery, recheckStatus } from "../../page";
 import { GoPlus } from "react-icons/go";
 import { FiMinus, FiPlus } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { saveOrder } from "./OrderAction";
 import Cookies from "js-cookie";
 import { getToken } from "@/app/auth/serverAction";
-
-interface ChoiceQuery {
-  name: string;
-  price: number;
-  prefix: string;
-}
 
 const Page = () => {
   const searchParams = useSearchParams();
@@ -49,74 +43,46 @@ const Page = () => {
   const [loadingState, setLoadingState] = useState(false);
 
   useEffect(() => {
-    const verifyUser = async () => {
-      try {
-        const raw = localStorage.getItem("table");
-        const tableInfo = JSON.parse(raw ?? "{}");
-
-        if (!tableInfo) {
-          throw new Error("Unauthorization");
-        }
-
-        const jwtToken = await getToken();
-        let res = await axios.get(
-          `${clientWebserverUrl}/api/auth/verify-status/${tableInfo.uuid}`,
-          {
-            headers: {
-              Authorization: `Bearer ${jwtToken}`,
-            },
-          }
-        );
-      } catch (e: any) {
-        if (e.message === "Request failed with status code 401") {
-          toast.error("ยืนยันผู้ใช้งานล้มเหลว");
-          return router.push("/unauthorized");
-        }
-        console.log(e.message);
-        return router.push(`/unauthorized`);
-      }
-    };
-    verifyUser();
+    recheckStatus(router);
   }, [router]);
 
   useEffect(() => {
     const loadMenu = async () => {
       try {
-        const jwtToken = await getToken()
         const res = await axios.get(
-          `${clientWebserverUrl}/api/menus/${searchParams.get("id")}`, {
+          `${clientWebserverUrl}/menus/${searchParams.get("id")}`,
+          {
             headers: {
-              Authorization: `Bearer ${jwtToken}`
-            }
+              Includes: true,
+            },
           }
         );
-        if (res.status === 200) {
-          setMenu(res.data);
+        const { result } = res.data;
+        setMenu(result);
 
-          let tempRequired = [];
-          let tempOptions = [];
-          for (let i = 0; i < res.data.options.length; i++) {
-            if (res.data.options[i].required) {
-              tempRequired.push({
-                name: res.data.options[i].name,
-                value: [],
-                price: 0,
-              });
-            } else {
-              tempOptions.push({
-                name: res.data.options[i].name,
-                value: [],
-                price: 0,
-              });
-            }
+        let tempRequired = [];
+        let tempOptions = [];
+        for (let i = 0; i < result.options.length; i++) {
+          if (result.options[i].required) {
+            tempRequired.push({
+              name: result.options[i].name,
+              value: [],
+              price: 0,
+            });
+          } else {
+            tempOptions.push({
+              name: result.options[i].name,
+              value: [],
+              price: 0,
+            });
           }
-          setRequiredOptions(tempRequired);
-          setOptions(tempOptions);
-          setTotalPrice(res.data.price);
         }
+        setRequiredOptions(tempRequired);
+        setOptions(tempOptions);
+        setTotalPrice(result.price);
       } catch (e: any) {
         if (e.message === "Request failed with status code 401") {
-          toast.error("ยืนัยนผู้ใช้งานล้มเหลว");
+          toast.error("ยืนยันผู้ใช้งานล้มเหลว");
           router.push("/unauthorized");
         }
       }
@@ -136,19 +102,20 @@ const Page = () => {
   }, [requiredOptions, options, menu?.price, quantity]);
 
   const handleOptionsChange = (option: OptionQuery, e: string[]) => {
-    if (e.length > option.max_multi) {
+    if (e.length > option.max_select) {
       return;
     }
 
     let filteredOptions = options.filter((o) =>
       o.name !== option.name ? true : false
     );
-    const choices = JSON.parse(option.choices);
+    const choices = option.choices;
     let price = 0;
     for (let i = 0; i < e.length; i++) {
       for (let j = 0; j < choices.length; j++) {
         if (e[i] === choices[j].name) {
-          price += choices[j].price;
+          const factor = choices[j].prefix === "-" ? -1 : 1;
+          price += choices[j].price * factor;
         }
       }
     }
@@ -156,11 +123,12 @@ const Page = () => {
   };
 
   const handleRequiredOptionsChange = (option: OptionQuery, e: string) => {
-    const choices = JSON.parse(option.choices);
+    const choices = option.choices;
     let price = 0;
     for (let j = 0; j < choices.length; j++) {
       if (e === choices[j].name) {
-        price += choices[j].price;
+        const factor = choices[j].prefix === "-" ? -1 : 1;
+        price += choices[j].price * factor;
       }
     }
     setRequiredOptions([
@@ -185,27 +153,23 @@ const Page = () => {
 
   const addNewOrderToCard = async () => {
     setLoadingState(true);
-    const orderString = {
+    const order = {
       uuid: crypto.randomUUID(),
+      menu_id: menu?.id ?? "null",
       name: menu?.name ?? "",
       price: totalPrice,
       quantity,
       status: "NOT_CONFIRM",
-      created_at: new Date().toLocaleString(),
+      created_at: new Date(),
       options: [
         ...requiredOptions.filter((r) => (r.value.length > 0 ? true : false)),
         ...options.filter((o) => (o.value.length > 0 ? true : false)),
       ],
     };
     try {
-      const tableId = JSON.parse(localStorage.getItem("table") ?? "[]").id;
-      const status = await saveOrder(orderString, tableId);
-
-      if (status === 200) {
-        toast.success("เพิ่มรายการสำเร็จ");
-      } else {
-        throw new Error("http code: " + status.toString());
-      }
+      const tableId = localStorage.getItem("table_id") ?? "";
+      await saveOrder(order, tableId);
+      toast.success("เพิ่มรายการสำเร็จ")
     } catch (error) {
       console.log(error);
       toast.error("เพิ่มรายการล้มเหลว โปรดติดต่อผู้ให้บริการ");
@@ -217,7 +181,7 @@ const Page = () => {
     <div className="flex flex-col p-5">
       <h3 className="font-bold text-xl mb-5">{menu?.name}</h3>
       <div className="flex flex-col gap-4 text-sm">
-        {menu &&
+        {menu?.options &&
           menu.options.map((option, key) => (
             <div className="flex flex-col" key={key}>
               <Divider className="mb-5" />
@@ -228,31 +192,29 @@ const Page = () => {
                 )}
               </div>
               <p className="opacity-60 mb-2">
-                จำนวน {JSON.parse(option.choices).length} ตัวเลือก |
-                เลือกได้สูงสุด {option.max_multi} ตัวเลือก
+                จำนวน {option.choices.length} ตัวเลือก | เลือกได้สูงสุด{" "}
+                {option.max_select} ตัวเลือก
               </p>
               {option.required ? (
                 <RadioGroup
                   color="success"
                   onValueChange={(e) => handleRequiredOptionsChange(option, e)}
                 >
-                  {JSON.parse(option.choices).map(
-                    (choice: ChoiceQuery, key: number) => (
-                      <Radio value={choice.name} key={key}>
-                        <div className="flex justify-between opacity-60 gap-2">
-                          <p className="text-sm">{choice.name}</p>
-                          <p className="text-sm">
-                            {choice.prefix === "inc"
-                              ? "+"
-                              : choice.prefix === "none"
-                              ? ""
-                              : "-"}
-                            ฿{choice.price}
-                          </p>
-                        </div>
-                      </Radio>
-                    )
-                  )}
+                  {option.choices.map((choice: ChoiceQuery, key: number) => (
+                    <Radio value={choice.name} key={key}>
+                      <div className="flex justify-between opacity-60 gap-2">
+                        <p className="text-sm">{choice.name}</p>
+                        <p className="text-sm">
+                          {choice.prefix === "+"
+                            ? "+"
+                            : choice.prefix === "free"
+                            ? ""
+                            : "-"}
+                          ฿{choice.price}
+                        </p>
+                      </div>
+                    </Radio>
+                  ))}
                 </RadioGroup>
               ) : (
                 <CheckboxGroup
@@ -264,7 +226,7 @@ const Page = () => {
                   }
                   onValueChange={(e) => handleOptionsChange(option, e)}
                 >
-                  {JSON.parse(option.choices).map(
+                  {option.choices.map(
                     (
                       choice: { name: string; price: number; prefix: string },
                       key: number
@@ -273,9 +235,9 @@ const Page = () => {
                         <div className="flex justify-between opacity-60 gap-2">
                           <p className="text-sm">{choice.name}</p>
                           <p className="text-sm">
-                            {choice.prefix === "inc"
+                            {choice.prefix === "+"
                               ? "+"
-                              : choice.prefix === "none"
+                              : choice.prefix === "free"
                               ? ""
                               : "-"}
                             ฿{choice.price}

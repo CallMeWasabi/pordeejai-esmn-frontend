@@ -1,9 +1,11 @@
 "use client";
 import { Button } from "@nextui-org/react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams, useRouter, redirect } from "next/navigation";
 import React, { useEffect } from "react";
 import { authVerify, getToken, setToken } from "./serverAction";
-import { shopUrl } from "../constant";
+import { clientWebserverUrl, shopUrl } from "../constant";
+import axios from "axios";
+import toast from "react-hot-toast";
 
 const AuthPage = () => {
   const router = useRouter();
@@ -14,15 +16,15 @@ const AuthPage = () => {
       try {
         const uuid = searchParams.get("uuid");
         if (!uuid) {
-          return router.push(`${shopUrl}/unauthorized`);
+          return redirect("/unauthorized")
         }
-        const res = await authVerify(uuid);
-        if (res && res.status === 200) {
-          localStorage.setItem("table", JSON.stringify(res.table));
-          return router.push(`${shopUrl}/menu`);
-        } else {
-          throw new Error("Unauthorized")
-        }
+        const res = await axios.get(`${clientWebserverUrl}/auth/${uuid}`);
+        const { token, table_name, table_id } = res.data;
+        localStorage.setItem("table_name", table_name);
+        localStorage.setItem("table_id", table_id)
+        setToken(token);
+        toast.success("auth successefully");
+        return router.push(`${shopUrl}/menu`);
       } catch (error) {
         return router.push(`${shopUrl}/unauthorized`);
       }

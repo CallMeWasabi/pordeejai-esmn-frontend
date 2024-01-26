@@ -11,7 +11,7 @@ const CancleTab = ({
   callForceReload,
 }: {
   orders: OrderQuery[];
-  tableId: number;
+  tableId: string;
   callForceReload: Function;
 }) => {
   const totalPrice = () => {
@@ -47,9 +47,13 @@ const CancleTab = ({
                   <p className="text-neutral-600">฿{order.price.toFixed(2)}</p>
                 </div>
                 <div className="flex gap-2 text-neutral-500">
-                  {order.options.map((option, key) => (
-                    <p key={key}>{option.value.join(" + ")}</p>
-                  ))}
+                  {order.options && (
+                    <>
+                      {order.options.map((option, key) => (
+                        <p key={key}>{option.value.join(" + ")}</p>
+                      ))}
+                    </>
+                  )}
                 </div>
               </div>
             </div>

@@ -41,10 +41,10 @@ const EditModal = ({
   refetch,
 }: {
   order: OrderQuery;
-  tableId: number;
+  tableId: string;
   refetch: Function;
 }) => {
-  const router = useRouter()
+  const router = useRouter();
 
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState<MenuQuery>();
@@ -91,49 +91,52 @@ const EditModal = ({
 
   const loadMenu = async () => {
     try {
-      const jwtToken = await getToken()
-      const res = await axios.get(`${clientWebserverUrl}/api/menus`, {
-        headers: {
-          Authorization: `Bearer ${jwtToken}`
+      const res = await axios.get(
+        `${clientWebserverUrl}/menus/${order.menu_id}`,
+        {
+          headers: {
+            Includes: true,
+          },
         }
-      });
-      const tempMenu = res.data.filter(
-        (menu: MenuQuery) => menu.name === order.name
-      )[0];
-      setMenu(tempMenu);
+      );
+      const { result } = res.data;
+      setMenu(result);
+
       let tempRequired = [];
       let tempOptions = [];
-      for (let i = 0; i < tempMenu.options.length; i++) {
-        if (tempMenu.options[i].required) {
-          let v: any[] = [];
-          let p = 0;
-          for (let j = 0; j < order.options.length; j++) {
-            if (tempMenu.options[i].name === order.options[j].name) {
-              v = order.options[j].value;
-              p = order.options[j].price;
-              break;
+      if (order.options) {
+        for (let i = 0; i < result.options.length; i++) {
+          if (result.options[i].required) {
+            let v: any[] = [];
+            let p = 0;
+            for (let j = 0; j < order.options.length; j++) {
+              if (result.options[i].name === order.options[j].name) {
+                v = order.options[j].value;
+                p = order.options[j].price;
+                break;
+              }
             }
-          }
-          tempRequired.push({
-            name: tempMenu.options[i].name,
-            value: v,
-            price: p,
-          });
-        } else {
-          let v: any[] = [];
-          let p = 0;
-          for (let j = 0; j < order.options.length; j++) {
-            if (tempMenu.options[i].name === order.options[j].name) {
-              v = order.options[j].value;
-              p = order.options[j].price;
-              break;
+            tempRequired.push({
+              name: result.options[i].name,
+              value: v,
+              price: p,
+            });
+          } else {
+            let v: any[] = [];
+            let p = 0;
+            for (let j = 0; j < order.options.length; j++) {
+              if (result.options[i].name === order.options[j].name) {
+                v = order.options[j].value;
+                p = order.options[j].price;
+                break;
+              }
             }
+            tempOptions.push({
+              name: result.options[i].name,
+              value: v,
+              price: p,
+            });
           }
-          tempOptions.push({
-            name: tempMenu.options[i].name,
-            value: v,
-            price: p,
-          });
         }
       }
       setRequiredOptions(tempRequired);
@@ -141,22 +144,22 @@ const EditModal = ({
       setQuantity(order.quantity);
     } catch (e: any) {
       if (e.message === "Request failed with status code 401") {
-        toast.error("ยืนยันผู้ใช้งานล้มเหลว")
-        router.push("/unauthorized")
+        toast.error("ยืนยันผู้ใช้งานล้มเหลว");
+        router.push("/unauthorized");
       }
-      console.log(e.message);
+      console.error(e.message);
     }
   };
 
   const handleOptionsChange = (option: OptionQuery, e: string[]) => {
-    if (e.length > option.max_multi) {
+    if (e.length > option.max_select) {
       return;
     }
 
     let filteredOptions = newOptions.filter((o) =>
       o.name !== option.name ? true : false
     );
-    const choices = JSON.parse(option.choices);
+    const choices = option.choices;
     let price = 0;
     for (let i = 0; i < e.length; i++) {
       for (let j = 0; j < choices.length; j++) {
@@ -169,7 +172,7 @@ const EditModal = ({
   };
 
   const handleRequiredOptionsChange = (option: OptionQuery, e: string) => {
-    const choices = JSON.parse(option.choices);
+    const choices = option.choices;
     let price = 0;
     for (let j = 0; j < choices.length; j++) {
       if (e === choices[j].name) {
@@ -189,13 +192,14 @@ const EditModal = ({
 
   const handleUpdateOrder = async (onClose: Function) => {
     setLoadingState(true);
-    const orderString = {
-      uuid: crypto.randomUUID(),
+    const newOrder = {
+      uuid: order.uuid,
       name: menu?.name ?? "",
+      menu_id: menu?.id ?? "null",
       price: totalPrice,
       quantity: newQuantity,
       status: "NOT_CONFIRM",
-      created_at: new Date().toLocaleString(),
+      created_at: new Date(),
       options: [
         ...newRequiredOptions.filter((r) =>
           r.value.length > 0 ? true : false
@@ -204,16 +208,11 @@ const EditModal = ({
       ],
     };
     try {
-      const tableId = JSON.parse(localStorage.getItem("table") ?? "[]").id;
-      const status = await updateOrder(order.uuid, orderString, tableId);
-
-      if (status === 200) {
-        toast.success("บันทึกรายการสำเร็จ");
-        refetch();
-        onClose();
-      } else {
-        throw new Error("http code: " + status.toString());
-      }
+      const tableId = localStorage.getItem("table_id") ?? "null";
+      await updateOrder(newOrder, tableId);
+      refetch();
+      onClose();
+      toast.success("บันทึกรายการสำเร็จ");
     } catch (error) {
       console.log(error);
       toast.error("บันทึกรายการล้มเหลว โปรดติดต่อผู้ให้บริการ");
@@ -223,12 +222,12 @@ const EditModal = ({
 
   const handleDeleteOrder = async (onClose: Function) => {
     setLoadingState(true);
-    const status = await deleteOrder(order.uuid, tableId);
-    if (status === 200) {
+    try {
+      await deleteOrder(order.uuid, tableId);
       refetch();
       onClose();
       toast.success("ลบรายการสำเร็จ");
-    } else {
+    } catch (err: any) {
       toast.error("ลบรายการล้มเหลว");
     }
     setLoadingState(false);
@@ -256,7 +255,7 @@ const EditModal = ({
               </ModalHeader>
               <ModalBody>
                 <div className="flex flex-col gap-4 text-sm">
-                  {menu &&
+                  {menu?.options &&
                     menu.options.map((option, key) => (
                       <div className="flex flex-col" key={key}>
                         <Divider className="mb-5" />
@@ -267,8 +266,8 @@ const EditModal = ({
                           )}
                         </div>
                         <p className="opacity-60 mb-2">
-                          จำนวน {JSON.parse(option.choices).length} ตัวเลือก |
-                          เลือกได้สูงสุด {option.max_multi} ตัวเลือก
+                          จำนวน {option.choices.length} ตัวเลือก |
+                          เลือกได้สูงสุด {option.max_select} ตัวเลือก
                         </p>
                         {option.required && newRequiredOptions.length > 0 ? (
                           <RadioGroup
@@ -285,7 +284,7 @@ const EditModal = ({
                               handleRequiredOptionsChange(option, e)
                             }
                           >
-                            {JSON.parse(option.choices).map(
+                            {option.choices.map(
                               (choice: ChoiceQuery, key: number) => (
                                 <Radio value={choice.name} key={key}>
                                   <div className="flex justify-between opacity-60 gap-2">
@@ -317,7 +316,7 @@ const EditModal = ({
                                   handleOptionsChange(option, e)
                                 }
                               >
-                                {JSON.parse(option.choices).map(
+                                {option.choices.map(
                                   (
                                     choice: {
                                       name: string;

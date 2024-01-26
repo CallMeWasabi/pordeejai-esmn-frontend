@@ -11,8 +11,9 @@ import Link from "next/link";
 import OnGoingTab from "./OnGoingTab";
 import SuccessTab from "./SuccessTab";
 import CancleTab from "./CancleTab";
-import { getToken } from "../auth/serverAction";
 import toast from "react-hot-toast";
+import { recheckStatus } from "../menu/page";
+import { IoReload } from "react-icons/io5";
 
 interface MemoOrder {
   id: number;
@@ -25,62 +26,40 @@ interface MemoOrder {
 const Page = () => {
   const router = useRouter();
 
-  const [memoOrder, setMemoOrder] = useState<MemoOrder>();
+  const [tableId, setTableId] = useState("");
   const [orders, setOrders] = useState<OrderQuery[]>([]);
   const [trigger, setTrigger] = useState(false);
+
+  useEffect(() => {
+    setTableId(localStorage.getItem("table_id") ?? "");
+  }, []);
 
   const refetch = () => {
     setTrigger(!trigger);
   };
 
   useEffect(() => {
-    const verifyUser = async () => {
-      try {
-        const raw = localStorage.getItem("table");
-        const tableInfo = JSON.parse(raw ?? "{}");
-
-        if (!tableInfo) {
-          throw new Error("Unauthorization");
-        }
-
-        let res = await axios.get(
-          `${clientWebserverUrl}/api/auth/verify-status/${tableInfo.uuid}`
-        );
-
-      } catch (e: any) {
-        if (e.message === "Request failed with status code 401") {
-          toast.error("ยืนยันผู้ใช้งานล้มเหลว");
-          return router.push("/unauthorized");
-        }
-        console.log(e.message);
-        return router.push(`/unauthorized`);
-      }
-    };
-    verifyUser();
+    recheckStatus(router);
   }, [router]);
 
   useEffect(() => {
     const loadOrder = async () => {
       try {
-        const jwtToken = await getToken();
-        const res = await axios.get(
-          `${clientWebserverUrl}/api/memo-orders/table/${
-            JSON.parse(localStorage.getItem("table") ?? "[]").id
-          }`,
-          {
-            headers: {
-              Authorization: `Bearer ${jwtToken}`,
-            },
-          }
-        );
-        setMemoOrder(res.data);
-        setOrders(JSON.parse(res.data.order));
+        const tableId = localStorage.getItem("table_id");
+        const res = await axios.get(`${clientWebserverUrl}/tables/${tableId}`);
+        const { result } = res.data;
+        if (!result.orders) {
+          setOrders([]);
+          return;
+        }
+        setOrders(result.orders);
       } catch (e: any) {
         if (e.message === "Request failed with status code 401") {
           toast.error("ยืนยันผู้ใช้งานล้มเหลว");
           router.push("/unauthorized");
         }
-        console.log(e.message);
+        toast.error(e.message)
+        console.log(e);
       }
     };
     loadOrder();
@@ -90,15 +69,26 @@ const Page = () => {
     <div className="p-5 flex flex-col">
       <h3 className="flex justify-between items-center">
         <p className="font-bold text-lg">รายการอาหาร</p>
-        <Button
-          as={Link}
-          href="/menu"
-          variant="light"
-          color="success"
-          className="font-bold"
-        >
-          สั่งอาหารเพิ่ม {">"}
-        </Button>
+        <div className="flex items-center">
+          <Button
+            variant="light"
+            color="success"
+            className="font-bold"
+            onClick={refetch}
+          >
+            <IoReload />
+            รีโหลด
+          </Button>
+          <Button
+            as={Link}
+            href="/menu"
+            variant="light"
+            color="success"
+            className="font-bold"
+          >
+            สั่งอาหารเพิ่ม {">"}
+          </Button>
+        </div>
       </h3>
       <Tabs variant="underlined" color="success" size="lg" fullWidth={true}>
         <Tab key="not-confirm" title="ยังไม่สำเร็จ">
@@ -106,16 +96,16 @@ const Page = () => {
             orders={orders.filter((o) =>
               o.status === "NOT_CONFIRM" ? true : false
             )}
-            tableId={memoOrder?.table_id ?? 0}
+            tableId={tableId}
             refetch={refetch}
           />
         </Tab>
         <Tab key="on-going" title="กำลังดำเนินการ">
           <OnGoingTab
             orders={orders.filter((o) =>
-              o.status === "ON_GOING" ? true : false
+              o.status === "PENDING" ? true : false
             )}
-            tableId={memoOrder?.table_id ?? 0}
+            tableId={tableId}
             callForceReload={refetch}
           />
         </Tab>
@@ -124,16 +114,16 @@ const Page = () => {
             orders={orders.filter((o) =>
               o.status === "SUCCESS" ? true : false
             )}
-            tableId={memoOrder?.table_id ?? 0}
+            tableId={tableId}
             callForceReload={refetch}
           />
         </Tab>
         <Tab key="failed-cancle" title="ยกเลิก/ล้มเหลว">
           <CancleTab
             orders={orders.filter((o) =>
-              o.status === "CANCLE" || o.status === "FAILED" ? true : false
+              o.status === "CANCEL" || o.status === "FAILED" ? true : false
             )}
-            tableId={memoOrder?.table_id ?? 0}
+            tableId={tableId}
             callForceReload={refetch}
           />
         </Tab>

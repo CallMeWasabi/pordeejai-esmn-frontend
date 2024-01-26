@@ -18,10 +18,10 @@ const NotConfirmTab = ({
   refetch,
 }: {
   orders: OrderQuery[];
-  tableId: number;
+  tableId: string;
   refetch: Function;
 }) => {
-  const router = useRouter()
+  const router = useRouter();
   const [loadingState, setLoadingState] = useState(false);
 
   const totalPrice = () => {
@@ -33,46 +33,25 @@ const NotConfirmTab = ({
   const submitOrder = async () => {
     setLoadingState(true);
     try {
-      const jwtToken = await getToken();
-      let res = await axios.get(
-        `${clientWebserverUrl}/api/memo-orders/table/${tableId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-          },
+      let res = await axios.get(`${clientWebserverUrl}/tables/${tableId}`);
+      const { orders } = res.data.result;
+      const newOrders = orders.map((order: OrderQuery) => {
+        if (order.status === "NOT_CONFIRM") {
+          order.status = "PENDING";
+          return order
         }
-      );
-      if (res.status === 200) {
-      }
-      const memoOrder = res.data;
-      const currentOrder = JSON.parse(memoOrder.order);
-      const uuids = orders.map((order) => order.uuid);
-      const newOrder = currentOrder.map((curr: OrderQuery) => {
-        if (uuids.includes(curr.uuid)) {
-          curr.status = "ON_GOING";
-          return curr;
-        } else {
-          return curr;
-        }
-      });
+        return order
+      })
 
-      res = await axios.put(
-        `${clientWebserverUrl}/api/memo-orders/table/${tableId}`,
-        {
-          order: JSON.stringify(newOrder),
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-          },
-        }
-      );
+      await axios.put(`${clientWebserverUrl}/orders/${tableId}`, {
+        orders: newOrders,
+      });
 
       toast.success("สั่งอาหารสำเร็จ");
       refetch();
     } catch (e: any) {
       if (e.message === "Request failed with status code 401") {
-        router.push("/unauthorized")
+        router.push("/unauthorized");
       }
       console.log(e.message);
       toast.error("สั่งรายการอาหารล้มเหลว โปรดติดต่อผู้ให้บริการ");
@@ -111,9 +90,13 @@ const NotConfirmTab = ({
                   <p className="text-neutral-600">฿{order.price.toFixed(2)}</p>
                 </div>
                 <div className="flex gap-2 text-neutral-500">
-                  {order.options.map((option, key) => (
-                    <p key={key}>{option.value.join(" + ")}</p>
-                  ))}
+                  {order.options && (
+                    <>
+                      {order.options.map((option, key) => (
+                        <p key={key}>{option.value.join(" + ")}</p>
+                      ))}
+                    </>
+                  )}
                 </div>
                 <EditModal order={order} tableId={tableId} refetch={refetch} />
               </div>
